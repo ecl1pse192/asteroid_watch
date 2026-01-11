@@ -28,10 +28,8 @@
     ```bash
     python -m venv venv
     # Для Windows:
-    ```bash
     venv\Scripts\activate
     # Для Mac/Linux:
-    ```bash
     source venv/bin/activate
 3. **Установите зависимости:**
     ```bash
