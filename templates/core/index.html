@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - NEO Observer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4">
+            <i class="bi bi-meteor"></i> Мониторинг астероидов
+        </h1>
+        <p class="lead">Отслеживание сближений с Землёй на неделю: {{ week_start|date:"d.m.Y" }} - {{ week_end|date:"d.m.Y" }}</p>
+    </div>
+</div>
+
+<!-- Статистика и график -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Статистика</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h3 class="text-primary">{{ total_asteroids }}</h3>
+                        <small class="text-muted">Всего астероидов</small>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-danger">{{ hazardous_count }}</h3>
+                        <small class="text-muted">Потенциально опасных</small>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-success">{{ safe_count }}</h3>
+                        <small class="text-muted">Безопасных</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Распределение по опасности</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="hazardChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="d-flex align-items-center gap-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="hazardous" value="1" id="hazardousFilter" 
+                               {% if show_hazardous_only %}checked{% endif %}>
+                        <label class="form-check-label" for="hazardousFilter">
+                            Показать только потенциально опасные объекты
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel"></i> Применить фильтр
+                    </button>
+                    {% if show_hazardous_only %}
+                    <a href="{% url 'core:index' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Сбросить
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблица астероидов -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Список сближений</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if flybys %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Название</th>
+                                <th>Дата сближения</th>
+                                <th>Скорость (км/ч)</th>
+                                <th>Дистанция промаха (км)</th>
+                                <th>Звёздная величина</th>
+                                <th>Статус</th>
+                                {% if user.is_authenticated %}<th>Действия</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for flyby in flybys %}
+                            <tr class="{% if flyby.asteroid.is_potentially_hazardous %}hazardous{% endif %}">
+                                <td>
+                                    <strong>{{ flyby.asteroid.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">ID: {{ flyby.asteroid.nasa_id }}</small>
+                                </td>
+                                <td>
+                                    {{ flyby.date|date:"d.m.Y H:i" }}
+                                    <br>
+                                    <small class="text-muted">{{ flyby.date|timesince }} назад</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ flyby.velocity_kmh|floatformat:0 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ flyby.miss_distance_km|floatformat:0 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if flyby.asteroid.absolute_magnitude %}
+                                        {{ flyby.asteroid.absolute_magnitude|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if flyby.asteroid.is_potentially_hazardous %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-exclamation-triangle"></i> Опасный
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success">Безопасный</span>
+                                    {% endif %}
+                                </td>
+                                {% if user.is_authenticated %}
+                                <td>
+                                    {% if flyby.asteroid.id in user_watchlist_ids %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-bookmark-check"></i> В списке
+                                        </span>
+                                    {% else %}
+                                        <a href="{% url 'core:add_to_watchlist' flyby.asteroid.id %}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="Добавить в список отслеживания">
+                                            <i class="bi bi-bookmark-plus"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if flyby.asteroid.nasa_jpl_url %}
+                                        <a href="{{ flyby.asteroid.nasa_jpl_url }}" 
+                                           target="_blank" 
+                                           class="btn btn-sm btn-outline-info" 
+                                           title="Открыть на сайте NASA JPL">
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info m-3">
+                    <i class="bi bi-info-circle"></i> 
+                    На данный период сближений не найдено. 
+                    Попробуйте обновить страницу позже или проверьте фильтры.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // График распределения по опасности
+    const ctx = document.getElementById('hazardChart').getContext('2d');
+    const hazardChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Безопасные', 'Потенциально опасные'],
+            datasets: [{
+                data: [{{ safe_count }}, {{ hazardous_count }}],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed + ' астероидов';
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
