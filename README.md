@@ -25,20 +25,28 @@
    ```bash
    git clone https://github.com/ecl1pse192/asteroid_watch.git
 2. **Создайте и активируйте виртуальное окружение:**
+    ```bash
     python -m venv venv
     # Для Windows:
+    ```bash
     venv\Scripts\activate
     # Для Mac/Linux:
+    ```bash
     source venv/bin/activate
 3. **Установите зависимости:**
+    ```bash
     pip install -r requirements.txt
 4. **Настройте переменные окружения:**
     Создайте файл .env в корне проекта (рядом с manage.py) и добавьте:
+    ```bash
     NASA_API_KEY=DEMO_KEY
 5. **Выполните миграции:**
+    ```bash
     python manage.py migrate
 6. **Загрузите данные**
     Команда скачает актуальные данные с серверов NASA:
+    ```bash
     python manage.py load_nasa
 7. **Запустите сервер:**
+    ```bash
     python manage.py runserver
